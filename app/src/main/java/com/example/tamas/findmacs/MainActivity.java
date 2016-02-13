@@ -16,6 +16,7 @@ import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -63,13 +64,16 @@ public class MainActivity extends AppCompatActivity {
 
     public ArrayList<ScanResult> bleDevices;
     ArrayList<ScanResult> temp;
+
     ArrayAdapter mArrayAdapter;
 
-
+    private DBHelper myDatabase;
 
     Button btn_startScan;
     Button btn_disconnect;
     ListView devicesListView;
+
+    String kategoria; //teszt
 
 
 
@@ -81,6 +85,12 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         scheduledScanExecutor = Executors.newScheduledThreadPool(5);
+
+        myDatabase = new DBHelper(this);
+        myDatabase.onUpgrade(myDatabase.getWritableDatabase(),0,1);
+
+        myDatabase.insertPromocio("Első Teszt kategoria","Teszt tartalom","Százalék",0,"01:17:C5:96:4E:49");
+        myDatabase.insertPromocio("Második Teszt kategoria","Teszt tartalom","Százalék",0,"01:17:C5:96:28:19");
 
         mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
         mBluetoothAdapter = mBluetoothManager.getAdapter();
@@ -97,8 +107,6 @@ public class MainActivity extends AppCompatActivity {
 
         secondOnScanResultCounter = 1;
         scanCounter = 0;
-
-
 
         mArrayAdapter = new ArrayAdapter(MainActivity.this, R.layout.simple_list_item_1);
         devicesListView.setAdapter(mArrayAdapter);
@@ -287,8 +295,22 @@ public class MainActivity extends AppCompatActivity {
                                 bestScanResult = bleDevices.get(i);
                             }
                         }
-                        Log.d("MIN", ": " + min);
-                        connectToDevice(bestScanResult.getDevice());
+                        Log.d("BEST RESULT", ": " + bestScanResult.getDevice().getAddress() + "; RSSI:" + min);
+                        //connectToDevice(bestScanResult.getDevice());
+                        String mac_cim = bestScanResult.getDevice().getAddress();
+                        Cursor cursor = myDatabase.getRecord(mac_cim);
+                        if(cursor != null)
+                        {
+                            cursor.moveToFirst();
+                            Log.i("FOUND DATABASE ENTRY", ": true");
+                            kategoria = cursor.getString(cursor.getColumnIndex(DBHelper.PROMOCIOK_COLUMN_KATEGORIA));
+                            Log.i("KATEGORIA: ", kategoria );
+                        }
+                        else
+                        {
+                            Log.i("FOUND DATABASE ENTRY",": false");
+                        }
+
 
                     }
 
@@ -359,21 +381,6 @@ public class MainActivity extends AppCompatActivity {
                 //BluetoothDevice btDevice = result.getDevice();
                 //connectToDevice(btDevice);
 
-                    /*if(bleDevices.isEmpty())
-                    {
-                        bleDevices.add(result);
-                    }
-                    else
-                    {
-                        for (int i = 0; i<bleDevices.size(); i++)
-                        {
-                            if(!bleDevices.get(i).getDevice().getAddress().equals(result.getDevice().getAddress()))
-                            {
-                                bleDevices.add(result);
-                            }
-                        }
-                    }*/
-
                 Unique(result);
                 mArrayAdapter.clear();
                 for(ScanResult device : bleDevices)
@@ -381,7 +388,6 @@ public class MainActivity extends AppCompatActivity {
                     int secs = (int) (((double) device.getTimestampNanos() / (double) 1000000000) * 100);
                     mArrayAdapter.add("Address: " + device.getDevice().getAddress() + "\n" + "RSSI: " + device.getRssi() + "\n" + "TxPowerLevel: " + device.getScanRecord().getTxPowerLevel());
                 }
-                //devicesListView.setAdapter(mArrayAdapter); korábbra tettem
                 mArrayAdapter.notifyDataSetChanged();
 
 
@@ -438,7 +444,7 @@ public class MainActivity extends AppCompatActivity {
         public void onServicesDiscovered(BluetoothGatt gatt, int status) {
             List<BluetoothGattService> services = gatt.getServices();
             Log.i("onServiceDiscovered",services.toString());
-            gatt.readCharacteristic(services.get(1).getCharacteristics().get(0));
+            //gatt.readCharacteristic(services.get(1).getCharacteristics().get(0));
         }
 
         @Override
